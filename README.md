@@ -72,7 +72,3 @@ padding_px   = 10
 ## Layout Specification
 
 `layout.toml` defines the logical pixel grid (`1920x1080` baseline, `1280x720` minimum, and compact breakpoint `<= 1500px`) installed to `/usr/share/hacknet/layout.toml`.
-
-## License
-
-GPL-3.0-or-later
