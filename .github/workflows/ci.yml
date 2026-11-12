@@ -1,0 +1,60 @@
+name: Validate Themes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate TOML Presets and Layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate TOML syntax and required schema
+        run: |
+          python3 - <<'PY'
+          import glob, sys, tomllib
+
+          files = sorted(glob.glob("presets/*.toml"))
+          if not files:
+              print("No preset files found in presets/!", file=sys.stderr)
+              sys.exit(1)
+
+          required_palette = [
+              "bg", "panel", "panel_alt", "fg", "dim", "faint",
+              "accent", "accent_dim", "accent_glow", "alert",
+              "warn", "ok", "grid", "selection", "terminal_fg"
+          ]
+          required_sections = ["palette", "typography", "effects", "terminal"]
+
+          for path in files:
+              with open(path, "rb") as f:
+                  data = tomllib.load(f)
+              for key in ("id", "name", "description"):
+                  if key not in data or not isinstance(data[key], str):
+                      print(f"{path}: missing top-level string key {key!r}", file=sys.stderr)
+                      sys.exit(1)
+              for sec in required_sections:
+                  if sec not in data or not isinstance(data[sec], dict):
+                      print(f"{path}: missing section [{sec}]", file=sys.stderr)
+                      sys.exit(1)
+              for pkey in required_palette:
+                  val = data["palette"].get(pkey)
+                  if not isinstance(val, str) or not val.startswith("#"):
+                      print(f"{path}: invalid palette.{pkey} = {val!r}", file=sys.stderr)
+                      sys.exit(1)
+              preset_id = data["id"]
+              accent = data["palette"]["accent"]
+              print(f"OK: {path} (id={preset_id}, accent={accent})")
+
+          with open("layout.toml", "rb") as f:
+              layout = tomllib.load(f)
+          for sec in ("display", "grid", "dock", "visualizer", "stage"):
+              if sec not in layout or not isinstance(layout[sec], dict):
+                  print(f"layout.toml: missing section [{sec}]", file=sys.stderr)
+                  sys.exit(1)
+          print(f"OK: layout.toml (version={layout.get('version')})")
+          PY
